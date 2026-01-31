@@ -50,14 +50,27 @@ for var in "$@"; do
   esac
 done
 
+if ! git rev-parse --show-toplevel; then
+  echo "Error: Not in a Git repository"
+  exit 1
+fi
+
+gitRoot=$(git rev-parse --show-toplevel)
+
+if [[ -d ${gitRoot}/.git ]]; then
+  gitDir=${gitRoot}/.git
+else
+  gitDir=$(cat ${gitRoot}/.git | sed 's/gitdir: //')
+fi
+
 # Iterate through options and respond accordingly
 for var in "$@"; do
   case "$var" in
     --status)
-      if [ ! -d ".git/retrace" ]; then
+      if [ ! -d "$gitDir/retrace" ]; then
         echo "Git retrace not in progress"
       else
-        branch="$(cat .git/retrace/BRANCH)"
+        branch="$(cat $gitDir/retrace/BRANCH)"
         echo "Git retrace in progress on branch $branch ($(git rev-parse --short $branch))"
         echo "$statusAdvice"
         echo ""
@@ -66,12 +79,12 @@ for var in "$@"; do
       exit 0
     ;;
     --continue)
-      if [ ! -d ".git/retrace" ]; then
+      if [ ! -d "$gitDir/retrace" ]; then
         echo "Git retrace not in progress"
         exit 1
       fi
 
-      branch="$(cat .git/retrace/BRANCH)"
+      branch="$(cat $gitDir/retrace/BRANCH)"
       baseCommit="$(git rev-parse "$branch^")"
       currentCommit="$(git rev-parse HEAD)"
 
@@ -86,7 +99,7 @@ for var in "$@"; do
         git checkout .
         git checkout "$branch" -q
         git branch -D git/retrace
-        rm -rf .git/retrace
+        rm -rf $gitDir/retrace
 
         exit 1
       fi
@@ -101,9 +114,9 @@ for var in "$@"; do
       # Take the temp commit and apply it reverted to the temporary branch
       git checkout git/retrace -q
       git diff git/retrace "$tempCommit" --binary | git apply --index
-      count="$(cat .git/retrace/COUNT)"
+      count="$(cat $gitDir/retrace/COUNT)"
       git commit --allow-empty -m "Retrace N-$((count++))"
-      echo $count > .git/retrace/COUNT
+      echo $count > $gitDir/retrace/COUNT
 
       # Checkout the base commit again
       git checkout "$baseCommit" -q
@@ -131,11 +144,11 @@ for var in "$@"; do
 
         git branch -D git/retrace
 
-        if [[ $(git config --get rebase.autoStash) == 'true' && $(cat .git/retrace/STASH) == 'true' ]]; then \
+        if [[ $(git config --get rebase.autoStash) == 'true' && $(cat $gitDir/retrace/STASH) == 'true' ]]; then \
           git stash pop
         fi
 
-        rm -rf .git/retrace
+        rm -rf $gitDir/retrace
 
         exit 0
       fi
@@ -145,7 +158,7 @@ for var in "$@"; do
     --abort)
       echo "Aborting"
 
-      if [ ! -d ".git/retrace" ]; then
+      if [ ! -d "$gitDir/retrace" ]; then
         echo "Git retrace not in progress"
         exit 1
       fi
@@ -153,11 +166,11 @@ for var in "$@"; do
       git clean -f
       git reset --hard
 
-      branch="$(cat .git/retrace/BRANCH)"
+      branch="$(cat $gitDir/retrace/BRANCH)"
       git checkout .
       git checkout "$branch" -q
       git branch -D git/retrace
-      rm -rf .git/retrace
+      rm -rf $gitDir/retrace
 
       exit 0
     ;;
@@ -171,8 +184,8 @@ for var in "$@"; do
   esac
 done
 
-if [ -d ".git/retrace" ]; then
-  branch="$(cat .git/retrace/BRANCH)"
+if [ -d "$gitDir/retrace" ]; then
+  branch="$(cat $gitDir/retrace/BRANCH)"
   echo "Git retrace already in progress on $branch ($(git rev-parse --short $branch))"
   echo "$statusAdvice"
   echo ""
@@ -196,17 +209,17 @@ fi
 
 echo "Starting git retrace on $(git symbolic-ref --short HEAD -q) ($(git rev-parse --short HEAD))"
 
-mkdir -p .git/retrace
+mkdir -p $gitDir/retrace
 
-echo "$branch" > .git/retrace/BRANCH
-echo "1" > .git/retrace/COUNT
+echo "$branch" > $gitDir/retrace/BRANCH
+echo "1" > $gitDir/retrace/COUNT
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
   message="Autostash. Git retrace '$branch' $(date '+%d %b %Y at %H:%M')"
   git stash push --quiet --include-untracked --message "$message"
-  echo "true" > .git/retrace/STASH
+  echo "true" > $gitDir/retrace/STASH
 else
-  echo "false" > .git/retrace/STASH
+  echo "false" > $gitDir/retrace/STASH
 fi
 
 git branch git/retrace $(git rev-parse HEAD)
