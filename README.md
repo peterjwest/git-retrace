@@ -1,8 +1,8 @@
-# Git rework
+# Git retrace
 
 ## Split a commit into multiple commits by working backwards
 
-Git rework exists to simplify rebasing large commits.
+Git retrace exists to simplify rebasing large commits.
 It works by letting you work backwards from the finished commit, splitting as you go.
 
 ## Rationale
@@ -29,23 +29,23 @@ How can we split this commit? Well you _could_ remove the import and any related
 
 This requires removing a lot of files from each commit and adding them back again; which tends to be very error prone.
 
-Git rework approaches this from the other direction, by removing features one by one, the process is much simpler.
+Git retrace approaches this from the other direction, by removing features one by one, the process is much simpler.
 
 ## Usage
 
 1) Check out the commit you want to rebase
-2) Start Git Rework: `git rework`, this works similarly to a rebase (your repo will be in a detatched head state until the rework is finished). This will give you the whole commit as a staged diff
+2) Start Git Retrace: `git retrace`, this works similarly to a rebase (your repo will be in a detatched head state until the retrace is finished). This will give you the whole commit as a staged diff
 3) Undo some portion of the changes (anything unstaged will also be removed)
-4) Run `git rework --continue`, the remaining diff of the original commit will be staged
+4) Run `git retrace --continue`, the remaining diff of the original commit will be staged
 5) Repeat steps 3 and 4, until you're happy with the size of the remaining diff
-6) Run `git rework --continue` with the remaining diff staged to finish the process
+6) Run `git retrace --continue` with the remaining diff staged to finish the process
 
-If anything goes wrong you can run `git rework --abort` to revert all changes.
+If anything goes wrong you can run `git retrace --abort` to revert all changes.
 
 ## Installation
 
-You can use this as a standalone bash script e.g. `./rework.sh`, or install it as a git alias:
+You can use this as a standalone bash script e.g. `./retrace.sh`, or install it as a git alias:
 
 ```bash
-git config --global alias.rework '!/path/to/rework.sh'
+git config --global alias.retrace '!/path/to/retrace.sh'
 ```

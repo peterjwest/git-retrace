@@ -20,7 +20,7 @@ Run \`$commandName --abort\` to abort the process at any time.
 Options
   --continue  Split the commit further
   --abort     Abort the process and return to the original commit
-  --status    Reports the status of rework
+  --status    Reports the status of retrace
   -h, --help  Print this usage information
 EOF
 )"
@@ -54,11 +54,11 @@ done
 for var in "$@"; do
   case "$var" in
     --status)
-      if [ ! -d ".git/rework" ]; then
-        echo "Git rework not in progress"
+      if [ ! -d ".git/retrace" ]; then
+        echo "Git retrace not in progress"
       else
-        branch="$(cat .git/rework/BRANCH)"
-        echo "Git rework in progress on branch $branch ($(git rev-parse --short $branch))"
+        branch="$(cat .git/retrace/BRANCH)"
+        echo "Git retrace in progress on branch $branch ($(git rev-parse --short $branch))"
         echo "$statusAdvice"
         echo ""
       fi
@@ -66,18 +66,18 @@ for var in "$@"; do
       exit 0
     ;;
     --continue)
-      if [ ! -d ".git/rework" ]; then
-        echo "Git rework not in progress"
+      if [ ! -d ".git/retrace" ]; then
+        echo "Git retrace not in progress"
         exit 1
       fi
 
-      branch="$(cat .git/rework/BRANCH)"
+      branch="$(cat .git/retrace/BRANCH)"
       baseCommit="$(git rev-parse "$branch^")"
       currentCommit="$(git rev-parse HEAD)"
 
       if [[ "$baseCommit" != "$currentCommit" ]]; then
         echo ""
-        echo "Unexpected commit, don't commit during rework!"
+        echo "Unexpected commit, don't commit during retrace!"
         echo "Aborting"
 
         git clean -f
@@ -85,8 +85,8 @@ for var in "$@"; do
 
         git checkout .
         git checkout "$branch" -q
-        git branch -D git/rework
-        rm -rf .git/rework
+        git branch -D git/retrace
+        rm -rf .git/retrace
 
         exit 1
       fi
@@ -95,47 +95,47 @@ for var in "$@"; do
       git restore .
 
       # Create a temp commit
-      git commit --allow-empty -m "Rework temp"
+      git commit --allow-empty -m "Retrace temp"
       tempCommit="$(git rev-parse HEAD)"
 
       # Take the temp commit and apply it reverted to the temporary branch
-      git checkout git/rework -q
-      git diff git/rework "$tempCommit" --binary | git apply --index
-      count="$(cat .git/rework/COUNT)"
-      git commit --allow-empty -m "Rework N-$((count++))"
-      echo $count > .git/rework/COUNT
+      git checkout git/retrace -q
+      git diff git/retrace "$tempCommit" --binary | git apply --index
+      count="$(cat .git/retrace/COUNT)"
+      git commit --allow-empty -m "Retrace N-$((count++))"
+      echo $count > .git/retrace/COUNT
 
       # Checkout the base commit again
       git checkout "$baseCommit" -q
 
       # Apply remaining changes by cherry picking the original large commit,
       # and all subsequent removals as one diff
-      git cherry-pick "..git/rework" -n
+      git cherry-pick "..git/retrace" -n
 
       # If the diff is empty, finish
       if [ -z "$(git status --porcelain)" ]; then
 
-        git rev-list "$branch..git/rework"
+        git rev-list "$branch..git/retrace"
 
         count=1
 
         # Apply the reverse of all the commits replacing the original commit
-        for tempCommit in $(git rev-list "$branch..git/rework"); do
+        for tempCommit in $(git rev-list "$branch..git/retrace"); do
           git revert "$tempCommit" --no-commit
-          git commit -m "Rework $((count++))"
+          git commit -m "Retrace $((count++))"
         done
         final="$(git rev-parse HEAD)"
 
         git branch -f "$branch" "$final"
         git checkout "$branch"
 
-        git branch -D git/rework
+        git branch -D git/retrace
 
-        if [[ $(git config --get rebase.autoStash) == 'true' && $(cat .git/rework/STASH) == 'true' ]]; then \
+        if [[ $(git config --get rebase.autoStash) == 'true' && $(cat .git/retrace/STASH) == 'true' ]]; then \
           git stash pop
         fi
 
-        rm -rf .git/rework
+        rm -rf .git/retrace
 
         exit 0
       fi
@@ -145,19 +145,19 @@ for var in "$@"; do
     --abort)
       echo "Aborting"
 
-      if [ ! -d ".git/rework" ]; then
-        echo "Git rework not in progress"
+      if [ ! -d ".git/retrace" ]; then
+        echo "Git retrace not in progress"
         exit 1
       fi
 
       git clean -f
       git reset --hard
 
-      branch="$(cat .git/rework/BRANCH)"
+      branch="$(cat .git/retrace/BRANCH)"
       git checkout .
       git checkout "$branch" -q
-      git branch -D git/rework
-      rm -rf .git/rework
+      git branch -D git/retrace
+      rm -rf .git/retrace
 
       exit 0
     ;;
@@ -171,9 +171,9 @@ for var in "$@"; do
   esac
 done
 
-if [ -d ".git/rework" ]; then
-  branch="$(cat .git/rework/BRANCH)"
-  echo "Git rework already in progress on $branch ($(git rev-parse --short $branch))"
+if [ -d ".git/retrace" ]; then
+  branch="$(cat .git/retrace/BRANCH)"
+  echo "Git retrace already in progress on $branch ($(git rev-parse --short $branch))"
   echo "$statusAdvice"
   echo ""
 
@@ -183,33 +183,33 @@ fi
 branch="$(git symbolic-ref --short HEAD -q)"
 
 if [[ ! $branch ]]; then
-  echo "Error: Git rework only works on a branch, you are in detatched HEAD state"
+  echo "Error: Git retrace only works on a branch, you are in detatched HEAD state"
   exit 1
 fi
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
   if [[ $(git config --get rebase.autoStash) != 'true' ]]; then
-    echo 'Error: uncommitted changes, Git rework requires a clean branch, or enable rebase.autoStash.'
+    echo 'Error: uncommitted changes, Git retrace requires a clean branch, or enable rebase.autoStash.'
     exit 1
   fi
 fi
 
-echo "Starting git rework on $(git symbolic-ref --short HEAD -q) ($(git rev-parse --short HEAD))"
+echo "Starting git retrace on $(git symbolic-ref --short HEAD -q) ($(git rev-parse --short HEAD))"
 
-mkdir -p .git/rework
+mkdir -p .git/retrace
 
-echo "$branch" > .git/rework/BRANCH
-echo "1" > .git/rework/COUNT
+echo "$branch" > .git/retrace/BRANCH
+echo "1" > .git/retrace/COUNT
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
-  message="Autostash. Git rework '$branch' $(date '+%d %b %Y at %H:%M')"
+  message="Autostash. Git retrace '$branch' $(date '+%d %b %Y at %H:%M')"
   git stash push --quiet --include-untracked --message "$message"
-  echo "true" > .git/rework/STASH
+  echo "true" > .git/retrace/STASH
 else
-  echo "false" > .git/rework/STASH
+  echo "false" > .git/retrace/STASH
 fi
 
-git branch git/rework $(git rev-parse HEAD)
+git branch git/retrace $(git rev-parse HEAD)
 
 baseCommit="$(git rev-parse "$branch^")"
 git checkout "$baseCommit" -q
