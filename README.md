@@ -47,5 +47,5 @@ If anything goes wrong you can run `git retrace --abort` to revert all changes.
 You can use this as a standalone bash script e.g. `./retrace.sh`, or install it as a git alias:
 
 ```bash
-git config --global alias.retrace '!/path/to/retrace.sh'
+git config --global alias.retrace '!sh /path/to/retrace.sh'
 ```
