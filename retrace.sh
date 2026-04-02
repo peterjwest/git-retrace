@@ -6,16 +6,15 @@
 set -euo pipefail
 
 command=${1:-}
-commandName=$(basename "$0")
 usage="$(cat <<EOF
 
-Usage: $commandName [--continue | --abort] [-h | --help]
+Usage: git retrace [--continue | --abort] [-h | --help]
 
 Split a commit into multiple commits by working backwards.
-Undo some of the changes and run \`$commandName --continue\` to commit them.
-Repeat until you have no changes left, then run \`$commandName --continue\` to finish the process.
+Undo some of the changes and run \`git retrace --continue\` to commit them.
+Repeat until you have no changes left, then run \`git retrace --continue\` to finish the process.
 
-Run \`$commandName --abort\` to abort the process at any time.
+Run \`git retrace --abort\` to abort the process at any time.
 
 Options
   --continue  Split the commit further
@@ -29,13 +28,13 @@ statusAdvice="$(cat <<EOF
 
 Unstage some of your changes and commit them with:
 
-  $commandName --continue
+  git retrace --continue
 
-The process will automatically finish when \`$commandName --continue\` is run with no changes staged.
+The process will automatically finish when \`git retrace --continue\` is run with no changes staged.
 
 Abort the process at any time with:
 
-  $commandName --abort
+  git retrace --abort
 EOF
 )"
 
