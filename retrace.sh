@@ -1,6 +1,7 @@
 #! /usr/bin/env bash
 
 # TODO:
+# - Support --no-verify
 
 set -euo pipefail
 
@@ -104,18 +105,23 @@ for var in "$@"; do
         exit 1
       fi
 
-      git clean -f
-      git restore .
-
       # Create a temp commit
-      git commit --allow-empty -m "Retrace temp"
+      if ! git commit --allow-empty -m "Retrace temp"; then
+        echo "\nGit hooks failed, please correct and try again." >&2
+        exit 1
+      fi
       tempCommit="$(git rev-parse HEAD)"
+
+      # Remove untracked files
+      git clean -f
+      # Remove unstaged changes
+      git restore .
 
       # Take the temp commit and apply it reverted to the temporary branch
       git checkout git/retrace -q
       git diff git/retrace "$tempCommit" --binary | git apply --index
       count="$(cat $gitDir/retrace/COUNT)"
-      git commit --allow-empty -m "Retrace N-$((count++))"
+      git commit --allow-empty --no-verify -m "Retrace N-$((count++))"
       echo $count > $gitDir/retrace/COUNT
 
       # Checkout the base commit again
@@ -135,7 +141,7 @@ for var in "$@"; do
         # Apply the reverse of all the commits replacing the original commit
         for tempCommit in $(git rev-list "$branch..git/retrace"); do
           git revert "$tempCommit" --no-commit
-          git commit -m "Retrace $((count++))"
+          git commit --no-verify -m "Retrace $((count++))"
         done
         final="$(git rev-parse HEAD)"
 
