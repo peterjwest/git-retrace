@@ -175,6 +175,11 @@ for var in "$@"; do
       git checkout .
       git checkout "$branch" -q
       git branch -D git/retrace
+
+      if [[ $(git config --get rebase.autoStash) == 'true' && $(cat $gitDir/retrace/STASH) == 'true' ]]; then \
+        git stash pop
+      fi
+
       rm -rf $gitDir/retrace
 
       exit 0
@@ -205,9 +210,9 @@ if [[ ! $branch ]]; then
   exit 1
 fi
 
-if ! git diff --quiet || ! git diff --cached --quiet; then
+if ! git diff --quiet || ! git diff --cached --quiet || git ls-files --others --exclude-standard | grep -q .; then
   if [[ $(git config --get rebase.autoStash) != 'true' ]]; then
-    echo 'Error: uncommitted changes, Git retrace requires a clean branch, or enable rebase.autoStash.'
+    echo 'Error: uncommitted/unstaged changes, Git retrace requires a clean branch, or enable rebase.autoStash.'
     exit 1
   fi
 fi
@@ -219,7 +224,7 @@ mkdir -p $gitDir/retrace
 echo "$branch" > $gitDir/retrace/BRANCH
 echo "1" > $gitDir/retrace/COUNT
 
-if ! git diff --quiet || ! git diff --cached --quiet; then
+if ! git diff --quiet || ! git diff --cached --quiet || git ls-files --others --exclude-standard | grep -q .; then
   message="Autostash. Git retrace '$branch' $(date '+%d %b %Y at %H:%M')"
   git stash push --quiet --include-untracked --message "$message"
   echo "true" > $gitDir/retrace/STASH
